@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Cliente } from "../types";
+import { storageService } from "../services/storage";
 import {
   Plus,
   Search,
@@ -32,63 +33,39 @@ const Clients: React.FC = () => {
     fetchClients();
   }, []);
 
-  const fetchClients = async () => {
+  const fetchClients = () => {
     setLoading(true);
-    try {
-      const response = await fetch("/api/clients");
-      const data = await response.json();
-      setClients(data || []);
-    } catch (e) {
-      console.error(e);
-    }
+    const data = storageService.load("clients") || [];
+    setClients(data);
     setLoading(false);
   };
 
-  const handleCreateClient = async (e: React.FormEvent) => {
+  const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const url = editingClient
-        ? `/api/clients/${editingClient.id}`
-        : "/api/clients";
-      const method = editingClient ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newClient),
-      });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        setEditingClient(null);
-        setNewClient({ nome: "", email: "", telefone: "", endereco: "" });
-        fetchClients();
-      } else {
-        console.error("Erro ao salvar cliente localmente.");
-      }
-    } catch (e) {
-      console.error(e);
+    let updatedClients;
+    if (editingClient) {
+      updatedClients = clients.map((c) =>
+        c.id === editingClient.id ? { ...newClient, id: c.id } : c
+      );
+    } else {
+      updatedClients = [
+        ...clients,
+        { ...newClient, id: Date.now() },
+      ];
     }
+    storageService.save("clients", updatedClients);
+    setIsModalOpen(false);
+    setEditingClient(null);
+    setNewClient({ nome: "", email: "", telefone: "", endereco: "" });
+    fetchClients();
   };
 
-  const handleDeleteClient = async () => {
+  const handleDeleteClient = () => {
     if (!clientToDelete) return;
-
-    try {
-      const response = await fetch(`/api/clients/${clientToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        fetchClients();
-      } else {
-        console.error("Erro ao excluir cliente.");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setClientToDelete(null);
-    }
+    const updatedClients = clients.filter((c) => c.id !== clientToDelete);
+    storageService.save("clients", updatedClients);
+    setClientToDelete(null);
+    fetchClients();
   };
 
   const openEditModal = (client: Cliente) => {
