@@ -1,0 +1,5 @@
+{
+  "name": "HidraElétrica",
+  "description": "Aplicativo para criar pasta, excluir pasta, adicionar materiais, excluir materiais, criar o orçamento, criar configurações. Controle total de obras com IA.",
+  "requestFramePermissions": ["camera", "microphone"]
+}
