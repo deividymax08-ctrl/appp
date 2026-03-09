@@ -9,8 +9,7 @@ import {
   DollarSign, 
   Settings, 
   LogOut,
-  Zap,
-  Sparkles
+  Zap
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,7 +20,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'ia', label: 'IA Assistente', icon: <Sparkles size={20} /> },
     { id: 'clientes', label: 'Clientes', icon: <Users size={20} /> },
     { id: 'materiais', label: 'Materiais', icon: <Package size={20} /> },
     { id: 'servicos', label: 'Serviços', icon: <Wrench size={20} /> },

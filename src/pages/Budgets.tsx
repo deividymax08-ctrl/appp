@@ -21,8 +21,10 @@ import {
   X,
   CheckCircle,
   ClipboardList,
+  Mic,
 } from "lucide-react";
 import { format } from "date-fns";
+import AIVoiceQuoteModal from "../components/AIVoiceQuoteModal";
 
 const Budgets: React.FC = () => {
   const [budgets, setBudgets] = useState<Estimativa[]>([]);
@@ -31,6 +33,7 @@ const Budgets: React.FC = () => {
   const [services, setServices] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
   // New Budget State
   const [selectedClientId, setSelectedClientId] = useState<number | "">("");
@@ -170,6 +173,13 @@ const Budgets: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsAIModalOpen(true)}
+            className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 border border-red-500/30 hover:border-red-500/50"
+          >
+            <Mic size={20} className="text-red-500" />
+            Orçamento por Voz (IA)
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
@@ -524,6 +534,14 @@ const Budgets: React.FC = () => {
         </div>
       )}
 
+      <AIVoiceQuoteModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onSuccess={fetchData}
+        clients={clients}
+        materials={materials}
+        services={services}
+      />
     </div>
   );
 };
