@@ -30,9 +30,12 @@ export interface Material {
 
 export interface Servico {
   id: number;
+  numero: number;
   nome: string;
+  categoria: string;
   preco: number;
-  descricao: string;
+  unidade: string;
+  descricao?: string;
 }
 
 export interface Estimativa {

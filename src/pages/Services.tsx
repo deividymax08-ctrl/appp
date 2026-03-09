@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Servico } from "../types";
 import { storageService } from "../services/storage";
+import { initializeElectricalServices } from "../services/catalogInitializer";
 import { Plus, Search, Wrench, Loader2, Trash2, Edit2, X } from "lucide-react";
 
 const Services: React.FC = () => {
@@ -10,14 +11,18 @@ const Services: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Servico | null>(null);
   const [newService, setNewService] = useState({
+    numero: 0,
     nome: "",
-    descricao: "",
+    categoria: "Instalações Elétricas",
     preco: 0,
+    unidade: "un",
+    descricao: "",
   });
 
   const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
 
   useEffect(() => {
+    initializeElectricalServices();
     fetchServices();
   }, []);
 
@@ -44,7 +49,7 @@ const Services: React.FC = () => {
     storageService.save("services", updatedServices);
     setIsModalOpen(false);
     setEditingService(null);
-    setNewService({ nome: "", descricao: "", preco: 0 });
+    setNewService({ numero: 0, nome: "", categoria: "Instalações Elétricas", preco: 0, unidade: "un", descricao: "" });
     fetchServices();
   };
 
@@ -59,22 +64,26 @@ const Services: React.FC = () => {
   const openEditModal = (service: Servico) => {
     setEditingService(service);
     setNewService({
+      numero: service.numero,
       nome: service.nome,
-      descricao: service.descricao || "",
+      categoria: service.categoria,
       preco: service.preco,
+      unidade: service.unidade,
+      descricao: service.descricao || "",
     });
     setIsModalOpen(true);
   };
 
   const openCreateModal = () => {
     setEditingService(null);
-    setNewService({ nome: "", descricao: "", preco: 0 });
+    setNewService({ numero: services.length + 1, nome: "", categoria: "Instalações Elétricas", preco: 0, unidade: "un", descricao: "" });
     setIsModalOpen(true);
   };
 
   const filteredServices = services.filter(
     (s) =>
       s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (s.descricao &&
         s.descricao.toLowerCase().includes(searchTerm.toLowerCase())),
   );
@@ -141,10 +150,14 @@ const Services: React.FC = () => {
               </div>
 
               <div className="space-y-2 mb-6">
-                <h3 className="text-xl font-bold text-white">{service.nome}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">{service.nome}</h3>
+                  <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">{service.categoria}</span>
+                </div>
                 <p className="text-zinc-500 text-sm line-clamp-2">
                   {service.descricao}
                 </p>
+                <p className="text-zinc-500 text-xs">Unidade: {service.unidade}</p>
               </div>
 
               <div className="flex items-center justify-between pt-6 border-t border-zinc-800">
@@ -212,6 +225,36 @@ const Services: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleCreateService} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">
+                    Número
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    className="w-full bg-zinc-800 border-zinc-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
+                    value={newService.numero}
+                    onChange={(e) =>
+                      setNewService({ ...newService, numero: parseInt(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">
+                    Unidade
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    className="w-full bg-zinc-800 border-zinc-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
+                    value={newService.unidade}
+                    onChange={(e) =>
+                      setNewService({ ...newService, unidade: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">
                   Nome do Serviço
@@ -225,6 +268,24 @@ const Services: React.FC = () => {
                     setNewService({ ...newService, nome: e.target.value })
                   }
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                  Categoria
+                </label>
+                <select
+                  className="w-full bg-zinc-800 border-zinc-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
+                  value={newService.categoria}
+                  onChange={(e) =>
+                    setNewService({ ...newService, categoria: e.target.value })
+                  }
+                >
+                  <option value="Instalações Elétricas">Instalações Elétricas</option>
+                  <option value="Manutenção Elétrica">Manutenção Elétrica</option>
+                  <option value="Quadro de Disjuntores">Quadro de Disjuntores</option>
+                  <option value="Instalações Especiais">Instalações Especiais</option>
+                  <option value="Serviços Técnicos">Serviços Técnicos</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">

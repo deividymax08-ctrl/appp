@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Material, Cliente, Servico } from "../types";
 import { storageService } from "../services/storage";
+import { initializeElectricalCatalog } from "../services/catalogInitializer";
 import { Plus, Search, Package, Loader2, Trash2, Edit2, X, Mic } from "lucide-react";
 import AIVoiceQuoteModal from "../components/AIVoiceQuoteModal";
 
@@ -22,6 +23,7 @@ const Materials: React.FC = () => {
   const [materialToDelete, setMaterialToDelete] = useState<number | null>(null);
 
   useEffect(() => {
+    initializeElectricalCatalog();
     fetchData();
   }, []);
 
