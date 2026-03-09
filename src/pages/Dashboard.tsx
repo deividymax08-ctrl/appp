@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
+import { storageService } from '../services/storage';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
@@ -41,17 +42,33 @@ const Dashboard: React.FC = () => {
     fetchStats();
   }, []);
 
-  const fetchStats = async () => {
-    try {
-      const response = await fetch('/api/stats');
-      const data = await response.json();
-      setStats(data);
+  const fetchStats = () => {
+    const budgets = storageService.load("budgets") || [];
+    const clients = storageService.load("clients") || [];
+    const services = storageService.load("services") || [];
 
-      // In a real app, we'd fetch monthly data from the API too
-      // For now, we'll keep the chart data simple or static as we don't have a monthly endpoint yet
-    } catch (e) {
-      console.error(e);
-    }
+    const totalFaturado = budgets.reduce((acc: number, curr: any) => acc + (curr.status === 'aprovado' || curr.status === 'concluido' ? curr.valor_total : 0), 0);
+    const totalServicos = budgets.length;
+    
+    const topServicosMap: Record<string, number> = {};
+    budgets.forEach((b: any) => {
+      b.items?.forEach((item: any) => {
+        if (item.tipo === 'servico') {
+          topServicosMap[item.descricao] = (topServicosMap[item.descricao] || 0) + 1;
+        }
+      });
+    });
+
+    const topServicos = Object.entries(topServicosMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    setStats({
+      totalFaturado,
+      totalServicos,
+      topServicos
+    });
   };
 
   return (

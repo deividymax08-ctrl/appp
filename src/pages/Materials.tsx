@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Material } from "../types";
-import { Plus, Search, Package, Loader2, Trash2, Edit2, X } from "lucide-react";
+import { Material, Cliente, Servico } from "../types";
+import { storageService } from "../services/storage";
+import { Plus, Search, Package, Loader2, Trash2, Edit2, X, Mic } from "lucide-react";
+import AIVoiceQuoteModal from "../components/AIVoiceQuoteModal";
 
 const Materials: React.FC = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [clients, setClients] = useState<Cliente[]>([]);
+  const [services, setServices] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [newMaterial, setNewMaterial] = useState({
     nome: "",
@@ -17,66 +22,43 @@ const Materials: React.FC = () => {
   const [materialToDelete, setMaterialToDelete] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchMaterials();
+    fetchData();
   }, []);
 
-  const fetchMaterials = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const response = await fetch("/api/materials");
-      const data = await response.json();
-      setMaterials(data || []);
-    } catch (e) {
-      console.error(e);
-    }
+    setMaterials(storageService.load("materials") || []);
+    setClients(storageService.load("clients") || []);
+    setServices(storageService.load("services") || []);
     setLoading(false);
   };
 
-  const handleCreateMaterial = async (e: React.FormEvent) => {
+  const handleCreateMaterial = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const url = editingMaterial
-        ? `/api/materials/${editingMaterial.id}`
-        : "/api/materials";
-      const method = editingMaterial ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMaterial),
-      });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        setEditingMaterial(null);
-        setNewMaterial({ nome: "", preco: 0, unidade: "un" });
-        fetchMaterials();
-      } else {
-        console.error("Erro ao salvar material localmente.");
-      }
-    } catch (e) {
-      console.error(e);
+    let updatedMaterials;
+    if (editingMaterial) {
+      updatedMaterials = materials.map((m) =>
+        m.id === editingMaterial.id ? { ...newMaterial, id: m.id } : m
+      );
+    } else {
+      updatedMaterials = [
+        ...materials,
+        { ...newMaterial, id: Date.now() },
+      ];
     }
+    storageService.save("materials", updatedMaterials);
+    setIsModalOpen(false);
+    setEditingMaterial(null);
+    setNewMaterial({ nome: "", preco: 0, unidade: "un" });
+    fetchData();
   };
 
-  const handleDeleteMaterial = async () => {
+  const handleDeleteMaterial = () => {
     if (!materialToDelete) return;
-
-    try {
-      const response = await fetch(`/api/materials/${materialToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        fetchMaterials();
-      } else {
-        console.error("Erro ao excluir material.");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setMaterialToDelete(null);
-    }
+    const updatedMaterials = materials.filter((m) => m.id !== materialToDelete);
+    storageService.save("materials", updatedMaterials);
+    setMaterialToDelete(null);
+    fetchData();
   };
 
   const openEditModal = (material: Material) => {
@@ -114,6 +96,13 @@ const Materials: React.FC = () => {
         >
           <Plus size={20} />
           Novo Material
+        </button>
+        <button
+          onClick={() => setIsAIModalOpen(true)}
+          className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 border border-red-500/30 hover:border-red-500/50"
+        >
+          <Mic size={20} className="text-red-500" />
+          Orçamento por Voz (IA)
         </button>
       </div>
 
@@ -313,6 +302,14 @@ const Materials: React.FC = () => {
           </div>
         </div>
       )}
+      <AIVoiceQuoteModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onSuccess={fetchData}
+        clients={clients}
+        materials={materials}
+        services={services}
+      />
     </div>
   );
 };

@@ -7,6 +7,7 @@ import {
   ItemEstimativa,
 } from "../types";
 import { generateBudgetPDF, generateMaterialListPDF } from "../services/pdfGenerator";
+import { storageService } from "../services/storage";
 import {
   Plus,
   Search,
@@ -20,10 +21,8 @@ import {
   X,
   CheckCircle,
   ClipboardList,
-  Mic,
 } from "lucide-react";
 import { format } from "date-fns";
-import AIVoiceQuoteModal from "../components/AIVoiceQuoteModal";
 
 const Budgets: React.FC = () => {
   const [budgets, setBudgets] = useState<Estimativa[]>([]);
@@ -32,7 +31,6 @@ const Budgets: React.FC = () => {
   const [services, setServices] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
   // New Budget State
   const [selectedClientId, setSelectedClientId] = useState<number | "">("");
@@ -47,24 +45,12 @@ const Budgets: React.FC = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const [budgetsRes, clientsRes, materialsRes, servicesRes] =
-        await Promise.all([
-          fetch("/api/budgets").then((r) => r.json()),
-          fetch("/api/clients").then((r) => r.json()),
-          fetch("/api/materials").then((r) => r.json()),
-          fetch("/api/services").then((r) => r.json()),
-        ]);
-
-      setBudgets(budgetsRes || []);
-      setClients(clientsRes || []);
-      setMaterials(materialsRes || []);
-      setServices(servicesRes || []);
-    } catch (e) {
-      console.error(e);
-    }
+    setBudgets(storageService.load("budgets") || []);
+    setClients(storageService.load("clients") || []);
+    setMaterials(storageService.load("materials") || []);
+    setServices(storageService.load("services") || []);
     setLoading(false);
   };
 
@@ -116,34 +102,28 @@ const Budgets: React.FC = () => {
     return selectedItems.reduce((acc, item) => acc + (item.total || 0), 0);
   };
 
-  const handleCreateBudget = async (e: React.FormEvent) => {
+  const handleCreateBudget = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) return;
 
-    const budgetData = {
-      cliente_id: selectedClientId,
+    const client = clients.find(c => c.id === selectedClientId);
+
+    const budgetData: Estimativa = {
+      id: Date.now(),
+      cliente_id: Number(selectedClientId),
+      client_name: client?.nome,
+      data: new Date().toISOString(),
+      status: 'pendente',
       descricao,
       valor_total: calculateTotal(),
-      items: selectedItems,
+      items: selectedItems as ItemEstimativa[],
     };
 
-    try {
-      const response = await fetch("/api/budgets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(budgetData),
-      });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        resetForm();
-        fetchData();
-      } else {
-        console.error("Erro ao criar orçamento localmente.");
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    const updatedBudgets = [...budgets, budgetData];
+    storageService.save("budgets", updatedBudgets);
+    setIsModalOpen(false);
+    resetForm();
+    fetchData();
   };
 
   const resetForm = () => {
@@ -152,82 +132,31 @@ const Budgets: React.FC = () => {
     setDescricao("");
   };
 
-  const handleDeleteBudget = async () => {
+  const handleDeleteBudget = () => {
     if (!budgetToDelete) return;
-
-    try {
-      const response = await fetch(`/api/budgets/${budgetToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        fetchData();
-      } else {
-        console.error("Erro ao excluir orçamento.");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBudgetToDelete(null);
-    }
+    const updatedBudgets = budgets.filter((b) => b.id !== budgetToDelete);
+    storageService.save("budgets", updatedBudgets);
+    setBudgetToDelete(null);
+    fetchData();
   };
 
-  const handleApproveBudget = async (id: number) => {
-    try {
-      const response = await fetch(`/api/budgets/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "aprovado" }),
-      });
-
-      if (response.ok) {
-        fetchData();
-      } else {
-        console.error("Erro ao aprovar orçamento.");
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const handleApproveBudget = (id: number) => {
+    const updatedBudgets = budgets.map(b => b.id === id ? {...b, status: 'aprovado' as const} : b);
+    storageService.save("budgets", updatedBudgets);
+    fetchData();
   };
 
-  const handleDownloadPDF = async (budget: Estimativa) => {
+  const handleDownloadPDF = (budget: Estimativa) => {
     const client = clients.find((c) => c.id === budget.cliente_id);
-    if (client) {
-      // Fetch items for this budget if not already present
-      let items = budget.items;
-      if (!items) {
-        try {
-          const res = await fetch(`/api/budgets/${budget.id}`);
-          const fullBudget = await res.json();
-          items = fullBudget.items;
-        } catch (e) {
-          console.error(e);
-          return;
-        }
-      }
-      if (items) {
-        generateBudgetPDF(budget, client, items);
-      }
+    if (client && budget.items) {
+      generateBudgetPDF(budget, client, budget.items);
     }
   };
 
-  const handleDownloadMaterialList = async (budget: Estimativa) => {
+  const handleDownloadMaterialList = (budget: Estimativa) => {
     const client = clients.find((c) => c.id === budget.cliente_id);
-    if (client) {
-      let items = budget.items;
-      if (!items) {
-        try {
-          const res = await fetch(`/api/budgets/${budget.id}`);
-          const fullBudget = await res.json();
-          items = fullBudget.items;
-        } catch (e) {
-          console.error(e);
-          return;
-        }
-      }
-      if (items) {
-        generateMaterialListPDF(budget, client, items);
-      }
+    if (client && budget.items) {
+      generateMaterialListPDF(budget, client, budget.items);
     }
   };
 
@@ -241,13 +170,6 @@ const Budgets: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsAIModalOpen(true)}
-            className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 border border-red-500/30 hover:border-red-500/50"
-          >
-            <Mic size={20} className="text-red-500" />
-            Orçamento por Voz (IA)
-          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
@@ -602,14 +524,6 @@ const Budgets: React.FC = () => {
         </div>
       )}
 
-      <AIVoiceQuoteModal
-        isOpen={isAIModalOpen}
-        onClose={() => setIsAIModalOpen(false)}
-        onSuccess={fetchData}
-        clients={clients}
-        materials={materials}
-        services={services}
-      />
     </div>
   );
 };

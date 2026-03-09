@@ -9,6 +9,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { storageService } from '../services/storage';
 
 const Financeiro: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -23,32 +24,25 @@ const Financeiro: React.FC = () => {
     fetchFinanceiro();
   }, []);
 
-  const fetchFinanceiro = async () => {
+  const fetchFinanceiro = () => {
     setLoading(true);
-    try {
-      // Fetch budgets to calculate income
-      const response = await fetch('/api/budgets');
-      const orcamentos = await response.json();
-      
-      // Filter concluded budgets for income
-      const concludedBudgets = orcamentos.filter((b: any) => b.status === 'concluido' || b.status === 'aprovado');
-      const totalEntrada = concludedBudgets.reduce((acc: number, curr: any) => acc + curr.valor_total, 0) || 0;
-      
-      // For now, salidas are just a placeholder or we can fetch materials
-      const materialsRes = await fetch('/api/materials');
-      const materiais = await materialsRes.json();
-      const totalSaida = materiais.reduce((acc: number, curr: any) => acc + (curr.preco * 5), 0) || 0; // Mocking some expense
+    const orcamentos = storageService.load("budgets") || [];
+    const materiais = storageService.load("materials") || [];
+    
+    // Filter concluded budgets for income
+    const concludedBudgets = orcamentos.filter((b: any) => b.status === 'concluido' || b.status === 'aprovado');
+    const totalEntrada = concludedBudgets.reduce((acc: number, curr: any) => acc + curr.valor_total, 0) || 0;
+    
+    // For now, salidas are just a placeholder or we can fetch materials
+    const totalSaida = materiais.reduce((acc: number, curr: any) => acc + (curr.preco * 5), 0) || 0; // Mocking some expense
 
-      setStats({
-        totalEntrada,
-        totalSaida,
-        saldo: totalEntrada - totalSaida
-      });
+    setStats({
+      totalEntrada,
+      totalSaida,
+      saldo: totalEntrada - totalSaida
+    });
 
-      setTransacoes(concludedBudgets || []);
-    } catch (e) {
-      console.error(e);
-    }
+    setTransacoes(concludedBudgets || []);
     setLoading(false);
   };
 

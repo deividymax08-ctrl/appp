@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Mic, Square, Loader2, X, AlertCircle } from 'lucide-react';
 import { Cliente, Material, Servico } from '../types';
+import { storageService } from '../services/storage';
 
 interface AIVoiceQuoteModalProps {
   isOpen: boolean;
@@ -27,6 +28,18 @@ const AIVoiceQuoteModal: React.FC<AIVoiceQuoteModalProps> = ({
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      startRecording();
+    } else {
+      // Cleanup if modal closes
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -184,19 +197,22 @@ const AIVoiceQuoteModal: React.FC<AIVoiceQuoteModalProps> = ({
     try {
       setStatusText('Criando novos itens e orçamento...');
       
+      const materials = storageService.load("materials") || [];
+      const services = storageService.load("services") || [];
+      const clients = storageService.load("clients") || [];
+      const budgets = storageService.load("budgets") || [];
+
       const materialMap = new Map<number | string, number>();
       for (const mat of result.materiais || []) {
         if (mat.is_new) {
-          const res = await fetch('/api/materials', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nome: mat.nome,
-              preco: mat.preco_unitario || 0,
-              unidade: mat.unidade || 'un'
-            })
-          });
-          const newMat = await res.json();
+          const newMat = {
+            id: Date.now() + Math.random(),
+            nome: mat.nome,
+            preco: mat.preco_unitario || 0,
+            unidade: mat.unidade || 'un'
+          };
+          materials.push(newMat);
+          storageService.save("materials", materials);
           materialMap.set(mat.nome, newMat.id);
         } else {
           materialMap.set(mat.id, mat.id);
@@ -206,16 +222,14 @@ const AIVoiceQuoteModal: React.FC<AIVoiceQuoteModalProps> = ({
       const serviceMap = new Map<number | string, number>();
       for (const serv of result.servicos || []) {
         if (serv.is_new) {
-          const res = await fetch('/api/services', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nome: serv.nome,
-              preco: serv.preco_unitario || 0,
-              descricao: serv.descricao || serv.nome
-            })
-          });
-          const newServ = await res.json();
+          const newServ = {
+            id: Date.now() + Math.random(),
+            nome: serv.nome,
+            preco: serv.preco_unitario || 0,
+            descricao: serv.descricao || serv.nome
+          };
+          services.push(newServ);
+          storageService.save("services", services);
           serviceMap.set(serv.nome, newServ.id);
         } else {
           serviceMap.set(serv.id, serv.id);
@@ -226,17 +240,15 @@ const AIVoiceQuoteModal: React.FC<AIVoiceQuoteModalProps> = ({
       if (!clienteId && clients.length > 0) {
         clienteId = clients[0].id;
       } else if (!clienteId) {
-        const res = await fetch('/api/clients', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nome: 'Cliente Avulso (IA)',
-            email: 'cliente@exemplo.com',
-            telefone: '000000000',
-            endereco: 'Endereço não informado'
-          })
-        });
-        const newClient = await res.json();
+        const newClient = {
+          id: Date.now() + Math.random(),
+          nome: 'Cliente Avulso (IA)',
+          email: 'cliente@exemplo.com',
+          telefone: '000000000',
+          endereco: 'Endereço não informado'
+        };
+        clients.push(newClient);
+        storageService.save("clients", clients);
         clienteId = newClient.id;
       }
 
@@ -271,20 +283,19 @@ const AIVoiceQuoteModal: React.FC<AIVoiceQuoteModalProps> = ({
         });
       }
 
-      const budgetRes = await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cliente_id: clienteId,
-          data: new Date().toISOString(),
-          valor_total: total,
-          status: 'pendente',
-          descricao: result.descricao || result.transcription || 'Orçamento gerado por IA',
-          items: items
-        })
-      });
+      const newBudget = {
+        id: Date.now(),
+        cliente_id: clienteId,
+        client_name: clients.find((c: any) => c.id === clienteId)?.nome,
+        data: new Date().toISOString(),
+        valor_total: total,
+        status: 'pendente',
+        descricao: result.descricao || result.transcription || 'Orçamento gerado por IA',
+        items: items
+      };
 
-      if (!budgetRes.ok) throw new Error('Erro ao criar orçamento');
+      budgets.push(newBudget);
+      storageService.save("budgets", budgets);
 
       setStatusText('Orçamento criado com sucesso!');
       setTimeout(() => {

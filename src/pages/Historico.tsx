@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { generateBudgetPDF, generateMaterialListPDF } from '../services/pdfGenerator';
+import { storageService } from '../services/storage';
 
 const Historico: React.FC = () => {
   const [budgets, setBudgets] = useState<Estimativa[]>([]);
@@ -26,89 +27,35 @@ const Historico: React.FC = () => {
     fetchHistory();
   }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = () => {
     setLoading(true);
-    try {
-      const [budgetsRes, clientsRes] = await Promise.all([
-        fetch('/api/budgets').then(r => r.json()),
-        fetch('/api/clients').then(r => r.json())
-      ]);
-      setBudgets(budgetsRes || []);
-      setClients(clientsRes || []);
-    } catch (e) {
-      console.error(e);
-    }
+    setBudgets(storageService.load("budgets") || []);
+    setClients(storageService.load("clients") || []);
     setLoading(false);
   };
 
-  const handleApproveBudget = async (id: number) => {
-    try {
-      const response = await fetch(`/api/budgets/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "aprovado" }),
-      });
-
-      if (response.ok) {
-        fetchHistory();
-      } else {
-        console.error("Erro ao aprovar orçamento.");
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const handleApproveBudget = (id: number) => {
+    const updatedBudgets = budgets.map(b => b.id === id ? {...b, status: 'aprovado' as const} : b);
+    storageService.save("budgets", updatedBudgets);
+    fetchHistory();
   };
 
-  const handleViewBudget = async (budget: Estimativa) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/budgets/${budget.id}`);
-      const fullBudget = await res.json();
-      setSelectedBudget(fullBudget);
-      setIsModalOpen(true);
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
+  const handleViewBudget = (budget: Estimativa) => {
+    setSelectedBudget(budget);
+    setIsModalOpen(true);
   };
 
-  const handleDownloadPDF = async (budget: Estimativa) => {
+  const handleDownloadPDF = (budget: Estimativa) => {
     const client = clients.find(c => c.id === budget.cliente_id);
-    if (client) {
-      let items = budget.items;
-      if (!items) {
-        try {
-          const res = await fetch(`/api/budgets/${budget.id}`);
-          const fullBudget = await res.json();
-          items = fullBudget.items;
-        } catch (e) {
-          console.error(e);
-          return;
-        }
-      }
-      if (items) {
-        generateBudgetPDF(budget, client, items);
-      }
+    if (client && budget.items) {
+      generateBudgetPDF(budget, client, budget.items);
     }
   };
 
-  const handleDownloadMaterialList = async (budget: Estimativa) => {
+  const handleDownloadMaterialList = (budget: Estimativa) => {
     const client = clients.find(c => c.id === budget.cliente_id);
-    if (client) {
-      let items = budget.items;
-      if (!items) {
-        try {
-          const res = await fetch(`/api/budgets/${budget.id}`);
-          const fullBudget = await res.json();
-          items = fullBudget.items;
-        } catch (e) {
-          console.error(e);
-          return;
-        }
-      }
-      if (items) {
-        generateMaterialListPDF(budget, client, items);
-      }
+    if (client && budget.items) {
+      generateMaterialListPDF(budget, client, budget.items);
     }
   };
 

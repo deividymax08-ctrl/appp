@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Servico } from "../types";
+import { storageService } from "../services/storage";
 import { Plus, Search, Wrench, Loader2, Trash2, Edit2, X } from "lucide-react";
 
 const Services: React.FC = () => {
@@ -20,63 +21,39 @@ const Services: React.FC = () => {
     fetchServices();
   }, []);
 
-  const fetchServices = async () => {
+  const fetchServices = () => {
     setLoading(true);
-    try {
-      const response = await fetch("/api/services");
-      const data = await response.json();
-      setServices(data || []);
-    } catch (e) {
-      console.error(e);
-    }
+    const data = storageService.load("services") || [];
+    setServices(data);
     setLoading(false);
   };
 
-  const handleCreateService = async (e: React.FormEvent) => {
+  const handleCreateService = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const url = editingService
-        ? `/api/services/${editingService.id}`
-        : "/api/services";
-      const method = editingService ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newService),
-      });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        setEditingService(null);
-        setNewService({ nome: "", descricao: "", preco: 0 });
-        fetchServices();
-      } else {
-        console.error("Erro ao salvar serviço localmente.");
-      }
-    } catch (e) {
-      console.error(e);
+    let updatedServices;
+    if (editingService) {
+      updatedServices = services.map((s) =>
+        s.id === editingService.id ? { ...newService, id: s.id } : s
+      );
+    } else {
+      updatedServices = [
+        ...services,
+        { ...newService, id: Date.now() },
+      ];
     }
+    storageService.save("services", updatedServices);
+    setIsModalOpen(false);
+    setEditingService(null);
+    setNewService({ nome: "", descricao: "", preco: 0 });
+    fetchServices();
   };
 
-  const handleDeleteService = async () => {
+  const handleDeleteService = () => {
     if (!serviceToDelete) return;
-
-    try {
-      const response = await fetch(`/api/services/${serviceToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        fetchServices();
-      } else {
-        console.error("Erro ao excluir serviço.");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setServiceToDelete(null);
-    }
+    const updatedServices = services.filter((s) => s.id !== serviceToDelete);
+    storageService.save("services", updatedServices);
+    setServiceToDelete(null);
+    fetchServices();
   };
 
   const openEditModal = (service: Servico) => {
