@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Servico } from "../types";
+import { Servico, PacoteServico } from "../types";
 import { storageService } from "../services/storage";
-import { initializeElectricalServices } from "../services/catalogInitializer";
-import { Plus, Search, Wrench, Loader2, Trash2, Edit2, X } from "lucide-react";
+import { initializeElectricalServices, initializeServicePackages } from "../services/catalogInitializer";
+import { Plus, Search, Wrench, Loader2, Trash2, Edit2, X, Package } from "lucide-react";
 
 const Services: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'servicos' | 'pacotes'>('servicos');
   const [services, setServices] = useState<Servico[]>([]);
+  const [packages, setPackages] = useState<PacoteServico[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,13 +25,16 @@ const Services: React.FC = () => {
 
   useEffect(() => {
     initializeElectricalServices();
-    fetchServices();
+    initializeServicePackages();
+    fetchData();
   }, []);
 
-  const fetchServices = () => {
+  const fetchData = () => {
     setLoading(true);
-    const data = storageService.load("services") || [];
-    setServices(data);
+    const servicesData = storageService.load("services") || [];
+    const packagesData = storageService.load("service_packages") || [];
+    setServices(servicesData);
+    setPackages(packagesData);
     setLoading(false);
   };
 
@@ -50,7 +55,7 @@ const Services: React.FC = () => {
     setIsModalOpen(false);
     setEditingService(null);
     setNewService({ numero: 0, nome: "", categoria: "Instalações Elétricas", preco: 0, unidade: "un", descricao: "" });
-    fetchServices();
+    fetchData();
   };
 
   const handleDeleteService = () => {
@@ -58,7 +63,7 @@ const Services: React.FC = () => {
     const updatedServices = services.filter((s) => s.id !== serviceToDelete);
     storageService.save("services", updatedServices);
     setServiceToDelete(null);
-    fetchServices();
+    fetchData();
   };
 
   const openEditModal = (service: Servico) => {
@@ -88,21 +93,44 @@ const Services: React.FC = () => {
         s.descricao.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
+  const filteredPackages = packages.filter(
+    (p) =>
+      p.nome_pacote.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white">Serviços</h2>
+          <h2 className="text-3xl font-bold text-white">Serviços e Pacotes</h2>
           <p className="text-zinc-400">
-            Gerencie seu catálogo de mão de obra localmente.
+            Gerencie seu catálogo de serviços e pacotes.
           </p>
         </div>
+        {activeTab === 'servicos' && (
+          <button
+            onClick={openCreateModal}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
+          >
+            <Plus size={20} />
+            Novo Serviço
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-2 bg-zinc-900 p-1 rounded-xl border border-zinc-800 w-fit">
         <button
-          onClick={openCreateModal}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
+          onClick={() => setActiveTab('servicos')}
+          className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'servicos' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
         >
-          <Plus size={20} />
-          Novo Serviço
+          Serviços Individuais
+        </button>
+        <button
+          onClick={() => setActiveTab('pacotes')}
+          className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'pacotes' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          Pacotes
         </button>
       </div>
 
@@ -110,7 +138,7 @@ const Services: React.FC = () => {
         <Search size={20} className="text-zinc-500" />
         <input
           type="text"
-          placeholder="Pesquisar por nome ou descrição..."
+          placeholder="Pesquisar..."
           className="bg-transparent border-none outline-none text-zinc-100 w-full"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -120,61 +148,104 @@ const Services: React.FC = () => {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 size={40} className="text-red-500 animate-spin" />
-          <p className="text-zinc-500">Carregando serviços...</p>
+          <p className="text-zinc-500">Carregando...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredServices.map((service) => (
-            <div
-              key={service.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all group"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <div className="p-4 bg-red-500/10 text-red-500 rounded-2xl group-hover:bg-red-500 group-hover:text-white transition-all duration-300">
-                  <Wrench size={24} />
+          {activeTab === 'servicos' ? (
+            filteredServices.map((service) => (
+              <div
+                key={service.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all group"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="p-4 bg-red-500/10 text-red-500 rounded-2xl group-hover:bg-red-500 group-hover:text-white transition-all duration-300">
+                    <Wrench size={24} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(service)}
+                      className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => setServiceToDelete(service.id)}
+                      className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-400 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditModal(service)}
-                    className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => setServiceToDelete(service.id)}
-                    className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-400 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-white">{service.nome}</h3>
+                    <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">{service.categoria}</span>
+                  </div>
+                  <p className="text-zinc-500 text-sm line-clamp-2">
+                    {service.descricao}
+                  </p>
+                  <p className="text-zinc-500 text-xs">Unidade: {service.unidade}</p>
+                </div>
+
+                <div className="flex items-center justify-between pt-6 border-t border-zinc-800">
+                  <div className="text-2xl font-bold text-white">
+                    <span className="text-red-500 text-sm font-medium mr-1">
+                      R$
+                    </span>
+                    {service.preco.toFixed(2)}
+                  </div>
                 </div>
               </div>
-
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">{service.nome}</h3>
-                  <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">{service.categoria}</span>
+            ))
+          ) : (
+            filteredPackages.map((pkg) => (
+              <div
+                key={pkg.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all group"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="p-4 bg-blue-500/10 text-blue-500 rounded-2xl group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
+                    <Package size={24} />
+                  </div>
                 </div>
-                <p className="text-zinc-500 text-sm line-clamp-2">
-                  {service.descricao}
-                </p>
-                <p className="text-zinc-500 text-xs">Unidade: {service.unidade}</p>
-              </div>
 
-              <div className="flex items-center justify-between pt-6 border-t border-zinc-800">
-                <div className="text-2xl font-bold text-white">
-                  <span className="text-red-500 text-sm font-medium mr-1">
-                    R$
-                  </span>
-                  {service.preco.toFixed(2)}
+                <div className="space-y-2 mb-6">
+                  <h3 className="text-xl font-bold text-white">{pkg.nome_pacote}</h3>
+                  <p className="text-zinc-500 text-sm line-clamp-2">
+                    {pkg.descricao}
+                  </p>
+                  <div className="text-xs text-zinc-400">
+                    <p className="font-semibold text-zinc-300">Inclui:</p>
+                    <ul className="list-disc list-inside">
+                      {pkg.servicos_incluidos.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-6 border-t border-zinc-800">
+                  <div className="text-2xl font-bold text-white">
+                    <span className="text-blue-500 text-sm font-medium mr-1">
+                      R$
+                    </span>
+                    {pkg.preco.toFixed(2)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
 
-          {filteredServices.length === 0 && (
+          {activeTab === 'servicos' && filteredServices.length === 0 && (
             <div className="col-span-full py-20 text-center bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl">
               <Wrench size={48} className="mx-auto text-zinc-700 mb-4" />
               <p className="text-zinc-500">Nenhum serviço encontrado.</p>
+            </div>
+          )}
+          {activeTab === 'pacotes' && filteredPackages.length === 0 && (
+            <div className="col-span-full py-20 text-center bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl">
+              <Package size={48} className="mx-auto text-zinc-700 mb-4" />
+              <p className="text-zinc-500">Nenhum pacote encontrado.</p>
             </div>
           )}
         </div>

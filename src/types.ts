@@ -38,6 +38,15 @@ export interface Servico {
   descricao?: string;
 }
 
+export interface PacoteServico {
+  id: number;
+  numero: number;
+  nome_pacote: string;
+  descricao: string;
+  preco: number;
+  servicos_incluidos: string[];
+}
+
 export interface Estimativa {
   id: number;
   cliente_id: number;

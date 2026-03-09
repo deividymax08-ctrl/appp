@@ -1,5 +1,5 @@
 import { storageService } from './storage';
-import { Material, Servico } from '../types';
+import { Material, Servico, PacoteServico } from '../types';
 
 export const initializeElectricalCatalog = () => {
     const existing = storageService.load('materials');
@@ -62,4 +62,19 @@ export const initializeElectricalServices = () => {
         { id: 26, numero: 26, nome: "Diagnóstico elétrico completo", categoria: "Serviços Técnicos", preco: 200, unidade: "un" },
     ];
     storageService.save('services', services);
+};
+
+export const initializeServicePackages = () => {
+    const existing = storageService.load('service_packages');
+    if (existing && existing.length > 0) return;
+
+    const packages: PacoteServico[] = [
+        { id: 1, numero: 1, nome_pacote: "Instalação Básica Residencial", descricao: "Pacote de instalação elétrica básica", preco: 250, servicos_incluidos: ["Instalação de 2 tomadas simples", "Instalação de 1 interruptor", "Instalação de 1 luminária", "Teste de funcionamento"] },
+        { id: 2, numero: 2, nome_pacote: "Iluminação Completa", descricao: "Pacote para iluminação completa", preco: 320, servicos_incluidos: ["Instalação de 3 luminárias", "Instalação de 2 interruptores", "Verificação de circuito", "Teste final de iluminação"] },
+        { id: 3, numero: 3, nome_pacote: "Revisão Elétrica Residencial", descricao: "Pacote de revisão elétrica completa", preco: 350, servicos_incluidos: ["Revisão de tomadas", "Revisão de interruptores", "Verificação de disjuntores", "Teste de tensão elétrica", "Diagnóstico de segurança"] },
+        { id: 4, numero: 4, nome_pacote: "Instalação de Equipamentos", descricao: "Pacote para instalação de equipamentos", preco: 300, servicos_incluidos: ["Instalação de chuveiro elétrico", "Instalação de torneira elétrica", "Teste de carga elétrica", "Verificação de disjuntor"] },
+        { id: 5, numero: 5, nome_pacote: "Quadro Elétrico", descricao: "Pacote para quadro elétrico", preco: 480, servicos_incluidos: ["Organização de quadro de disjuntores", "Instalação de até 3 disjuntores", "Identificação de circuitos", "Teste de funcionamento"] },
+        { id: 6, numero: 6, nome_pacote: "Manutenção Elétrica", descricao: "Pacote de manutenção elétrica", preco: 280, servicos_incluidos: ["Troca de 2 tomadas", "Troca de 2 interruptores", "Reparo simples em fiação", "Teste de circuito"] },
+    ];
+    storageService.save('service_packages', packages);
 };

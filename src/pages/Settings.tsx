@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   User,
   Building2,
@@ -9,14 +9,43 @@ import {
   Camera,
   CheckCircle2,
 } from "lucide-react";
+import { storageService } from "../services/storage";
 
 const Settings: React.FC = () => {
   const [activeSection, setActiveSection] = useState("perfil");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const savedImage = storageService.load("profile_image");
+    if (savedImage) {
+      setProfileImage(savedImage);
+    }
+  }, []);
 
   const handleSave = () => {
+    if (profileImage) {
+      storageService.save("profile_image", profileImage);
+    }
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setProfileImage(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -80,12 +109,29 @@ const Settings: React.FC = () => {
             <div className="space-y-8">
               <div className="flex items-center gap-6">
                 <div className="relative group">
-                  <div className="w-24 h-24 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-500 border-2 border-zinc-700">
-                    <User size={40} />
+                  <div 
+                    onClick={handleImageClick}
+                    className="w-24 h-24 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-500 border-2 border-zinc-700 overflow-hidden cursor-pointer hover:border-red-500 transition-all"
+                  >
+                    {profileImage ? (
+                      <img src={profileImage} alt="Perfil" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={40} />
+                    )}
                   </div>
-                  <button className="absolute bottom-0 right-0 p-2 bg-red-600 rounded-full text-white shadow-lg group-hover:scale-110 transition-transform">
+                  <button 
+                    onClick={handleImageClick}
+                    className="absolute bottom-0 right-0 p-2 bg-red-600 rounded-full text-white shadow-lg group-hover:scale-110 transition-transform"
+                  >
                     <Camera size={16} />
                   </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleImageChange} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">
@@ -194,6 +240,60 @@ const Settings: React.FC = () => {
                 >
                   <Save size={20} />
                   Salvar Dados da Empresa
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "notificacoes" && (
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-white">Notificações</h3>
+              <div className="space-y-4">
+                <label className="flex items-center gap-3 text-zinc-300">
+                  <input type="checkbox" className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 text-red-600 focus:ring-red-500" defaultChecked />
+                  Notificações por Email
+                </label>
+                <label className="flex items-center gap-3 text-zinc-300">
+                  <input type="checkbox" className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 text-red-600 focus:ring-red-500" defaultChecked />
+                  Notificações Push
+                </label>
+                <label className="flex items-center gap-3 text-zinc-300">
+                  <input type="checkbox" className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 text-red-600 focus:ring-red-500" />
+                  Alertas de Orçamento
+                </label>
+              </div>
+              <button onClick={handleSave} className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-red-600/20">
+                <Save size={20} /> Salvar Notificações
+              </button>
+            </div>
+          )}
+
+          {activeSection === "seguranca" && (
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-white">Segurança</h3>
+              <div className="space-y-4">
+                <button className="w-full text-left bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl transition-all">
+                  Alterar Senha
+                </button>
+                <button className="w-full text-left bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl transition-all">
+                  Autenticação de Dois Fatores
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "dados" && (
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-white">Backup e Dados</h3>
+              <p className="text-zinc-400 text-sm">
+                Gerencie seus dados locais e faça backups de segurança.
+              </p>
+              <div className="flex gap-4">
+                <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-all">
+                  <Database size={20} /> Exportar Backup
+                </button>
+                <button className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-all">
+                  <Database size={20} /> Importar Backup
                 </button>
               </div>
             </div>

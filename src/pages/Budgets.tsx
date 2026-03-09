@@ -4,6 +4,7 @@ import {
   Cliente,
   Material,
   Servico,
+  PacoteServico,
   ItemEstimativa,
 } from "../types";
 import { generateBudgetPDF, generateMaterialListPDF } from "../services/pdfGenerator";
@@ -31,6 +32,7 @@ const Budgets: React.FC = () => {
   const [clients, setClients] = useState<Cliente[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [services, setServices] = useState<Servico[]>([]);
+  const [packages, setPackages] = useState<PacoteServico[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -54,6 +56,7 @@ const Budgets: React.FC = () => {
     setClients(storageService.load("clients") || []);
     setMaterials(storageService.load("materials") || []);
     setServices(storageService.load("services") || []);
+    setPackages(storageService.load("service_packages") || []);
     setLoading(false);
   };
 
@@ -88,6 +91,21 @@ const Budgets: React.FC = () => {
           },
         ]);
       }
+    }
+  };
+
+  const handleAddPackage = (packageId: number) => {
+    const pkg = packages.find((p) => p.id === packageId);
+    if (pkg) {
+      const newItems = pkg.servicos_incluidos.map(servDesc => ({
+        tipo: "servico" as const,
+        item_id: 0, // Package items don't map directly to individual services in this simple implementation
+        descricao: servDesc,
+        quantidade: 1,
+        preco_unitario: pkg.preco / pkg.servicos_incluidos.length,
+        total: pkg.preco / pkg.servicos_incluidos.length,
+      }));
+      setSelectedItems([...selectedItems, ...newItems]);
     }
   };
 
@@ -401,6 +419,27 @@ const Budgets: React.FC = () => {
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nome} - R$ {s.preco.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-bold text-white flex items-center gap-2">
+                    <Package size={18} className="text-blue-500" /> Pacotes
+                  </h4>
+                  <select
+                    className="w-full bg-zinc-800 border-zinc-700 rounded-xl px-4 py-3 text-white outline-none"
+                    onChange={(e) =>
+                      e.target.value &&
+                      handleAddPackage(Number(e.target.value))
+                    }
+                    value=""
+                  >
+                    <option value="">Adicionar pacote...</option>
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome_pacote} - R$ {p.preco.toFixed(2)}
                       </option>
                     ))}
                   </select>
